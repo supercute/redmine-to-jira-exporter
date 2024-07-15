@@ -11,9 +11,9 @@ npm install or yarn install
 ## Run:
 
 
-node users-exporter.js
+yarn users
 
-node issues-exporter.js your-redmine-project-id your-jira-project-key
+yarn issues your-redmine-project-id your-jira-project-key
 
 
 ## Import:
