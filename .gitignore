@@ -1,0 +1,16 @@
+/node_modules
+/.npm
+/.env
+/LOCK_BEFORE
+/LOCK_AFTER
+/routes.local.js
+/TODO.md
+
+.vscode
+.sublime-workspace
+.sublime-project
+.idea
+.DS_Store
+
+/issues
+/users
