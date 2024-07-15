@@ -65,8 +65,8 @@ function transformIssuesToJiraFormat(issues) {
     updated: new Date(issue.updated_on).toISOString(),
     summary: issue.subject,
     externalId: issue.id.toString(),
-    timeSpent: issue.total_spent_hours > 0 ? convertHoursToISO8601(issue.total_spent_hours) : 0,
-    originalEstimate: issue.total_estimated_hours > 0 ? convertHoursToISO8601(issue.total_estimated_hours) : 0,
+    timeSpent: convertHoursToISO8601(issue.total_spent_hours),
+    originalEstimate: convertHoursToISO8601(issue.total_estimated_hours),
     comments: issue.comments
       .filter((comment) => comment.notes.trim() !== "") // Remove empty comments
       .map((comment) => ({
@@ -113,8 +113,8 @@ function transformIssuesToJiraFormatWithUsers(issues, redmineUsers) {
       updated: new Date(issue.updated_on).toISOString(),
       summary: issue.subject,
       externalId: issue.id.toString(),
-      timeSpent: issue.total_spent_hours > 0 ? convertHoursToISO8601(issue.total_spent_hours) : 0,
-      originalEstimate: issue.total_estimated_hours > 0 ? convertHoursToISO8601(issue.total_estimated_hours) : 0,
+      timeSpent: convertHoursToISO8601(issue.total_spent_hours),
+      originalEstimate:convertHoursToISO8601(issue.total_estimated_hours),
       comments: comments,
       worklogs: worklogs,
     };
@@ -170,7 +170,9 @@ async function getRedmineTimeEntries(projectId, issueId) {
 // Main function to export issues
 async function exportRedmineIssuesToJira(projectId, jiraProjectKey) {
   if (redmineConfig.parseWorkLog && !jiraConfig.useRedmineUsers) {
-    console.error("REDMINE_PARSE_WORKLOG works only together with JIRA_USE_REDMINE_USERS");
+    console.error(
+      "REDMINE_PARSE_WORKLOG works only together with JIRA_USE_REDMINE_USERS"
+    );
     process.exit(1);
   }
   const issues = await getRedmineIssues(projectId);
@@ -181,7 +183,7 @@ async function exportRedmineIssuesToJira(projectId, jiraProjectKey) {
   for (const issue of issues) {
     issue.comments = await getRedmineIssueComments(issue.id);
     if (jiraConfig.useRedmineUsers && redmineConfig.parseWorkLog) {
-      issue.worklogs = await getRedmineTimeEntries(projectId, issue.id) ?? [];
+      issue.worklogs = (await getRedmineTimeEntries(projectId, issue.id)) ?? [];
     } else {
       issue.worklogs = [];
     }
@@ -223,6 +225,9 @@ async function exportRedmineIssuesToJira(projectId, jiraProjectKey) {
 }
 
 function convertHoursToISO8601(hours) {
+  if (hours === 0) {
+    return "PT0M";
+  }
   const totalMinutes = Math.round(hours * 60);
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
