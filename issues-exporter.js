@@ -65,8 +65,7 @@ function transformIssuesToJiraFormat(issues) {
     updated: new Date(issue.updated_on).toISOString(),
     summary: issue.subject,
     externalId: issue.id.toString(),
-    timeSpent: convertHoursToISO8601(issue.total_spent_hours),
-    originalEstimate: convertHoursToISO8601(issue.total_estimated_hours),
+    originalEstimate: convertHoursToISO8601(issue.estimated_hours),
     comments: issue.comments
       .filter((comment) => comment.notes.trim() !== "") // Remove empty comments
       .map((comment) => ({
@@ -96,10 +95,10 @@ function transformIssuesToJiraFormatWithUsers(issues, redmineUsers) {
         author: redmineUsers[worklog.user.id]?.login,
         timeSpent: convertHoursToISO8601(worklog.hours),
         startDate: new Date(worklog.spent_on).toISOString(),
-        created: new Date(worklog.created_on).toISOString(),
+        comment: worklog.comments ?? '',
       };
     });
-
+     
     return {
       priority: jiraConfig.defaultPriority,
       reporter: authorLogin ?? jiraConfig.defaultAuthor,
@@ -113,8 +112,7 @@ function transformIssuesToJiraFormatWithUsers(issues, redmineUsers) {
       updated: new Date(issue.updated_on).toISOString(),
       summary: issue.subject,
       externalId: issue.id.toString(),
-      timeSpent: convertHoursToISO8601(issue.total_spent_hours),
-      originalEstimate:convertHoursToISO8601(issue.total_estimated_hours),
+      originalEstimate: convertHoursToISO8601(issue.estimated_hours),
       comments: comments,
       worklogs: worklogs,
     };
@@ -225,7 +223,7 @@ async function exportRedmineIssuesToJira(projectId, jiraProjectKey) {
 }
 
 function convertHoursToISO8601(hours) {
-  if (hours === 0) {
+  if (!hours || hours === 0) {
     return "PT0M";
   }
   const totalMinutes = Math.round(hours * 60);
