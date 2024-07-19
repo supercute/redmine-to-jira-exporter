@@ -30,8 +30,8 @@ async function getRedmineIssues(projectId) {
   let totalCount = 0;
 
   const path = redmineConfig.onlyActiveTasks
-    ? `/projects/${projectId}/issues.json`
-    : `/projects/${projectId}/issues.json?status_id=*`;
+    ? `/projects/${projectId}/issues.json?sort=id`
+    : `/projects/${projectId}/issues.json?status_id=*&sort=id`;
 
   do {
     const response = await axios.get(path, {
