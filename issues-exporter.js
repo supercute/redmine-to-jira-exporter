@@ -9,6 +9,7 @@ const redmineConfig = {
   baseURL: process.env.REDMINE_URL,
   apiKey: process.env.REDMINE_API_KEY,
   onlyActiveUsers: process.env.REDMINE_PARSE_ONLY_ACTIVE_USERS === "true",
+  onlyActiveTasks: process.env.REDMINE_PARSE_ONLY_ACTIVE_TASKS === "true",
   parseWorkLog: process.env.REDMINE_PARSE_WORKLOG === "true",
 };
 
@@ -28,8 +29,12 @@ async function getRedmineIssues(projectId) {
   const limit = 25;
   let totalCount = 0;
 
+  const path = redmineConfig.onlyActiveTasks
+    ? `/projects/${projectId}/issues.json`
+    : `/projects/${projectId}/issues.json?status_id=*`;
+
   do {
-    const response = await axios.get(`/projects/${projectId}/issues.json`, {
+    const response = await axios.get(path, {
       baseURL: redmineConfig.baseURL,
       headers: { "X-Redmine-API-Key": redmineConfig.apiKey },
       params: { offset, limit },
@@ -78,9 +83,9 @@ function transformIssuesToJiraFormat(issues) {
 function transformIssuesToJiraFormatWithUsers(issues, redmineUsers) {
   return issues.map((issue) => {
     const authorLogin = redmineUsers[issue.author.id]?.login;
-    const assigneeLogin = redmineUsers[issue.assigned_to.id]?.login;
+    const assigneeLogin = issue.assigned_to?.id ? redmineUsers[issue.assigned_to.id]?.login : null;
     const comments = issue.comments
-      .filter((comment) => comment.notes.trim() !== "") // Remove empty comments
+      .filter((comment) => comment?.notes?.trim() !== "") // Remove empty comments
       .map((comment) => {
         const commentLogin = redmineUsers[comment.user.id]?.login;
         return {
