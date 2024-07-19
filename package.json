@@ -4,7 +4,8 @@
   "description": "Exports issues with comments and worklogs from Redmine and converts them to json for import into Jira",
   "scripts": {
     "issues": "node issues-exporter.js",
-    "users": "node users-exporter.js"
+    "users": "node users-exporter.js",
+    "projects": "node projects-exporter.js"
   },
   "dependencies": {
     "axios": "^0.21.1",

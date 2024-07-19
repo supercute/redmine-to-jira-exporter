@@ -16,7 +16,7 @@ yarn users
 yarn issues your-redmine-project-id your-jira-project-key
 
 
-## Import:
+## Import Users, Tasks:
 
 Log in to Jira as a user with the Jira Administrators global permission.
 
@@ -28,6 +28,12 @@ Upload your JSON file.
 
 Select Begin Import when you are ready to begin importing your JSON file into Jira. The importer will display updates as the import progresses, then a success message when the import is complete.
 
+
+## Import Project:
+
+Send to Jira RestAPI
+
+POST /api/2/project
 
 
 ## ENV Description
