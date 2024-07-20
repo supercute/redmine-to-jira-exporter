@@ -1,6 +1,8 @@
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
+
 const ProgressBar = require("progress");
 require("dotenv").config();
 
@@ -8,6 +10,8 @@ require("dotenv").config();
 const redmineConfig = {
   baseURL: process.env.REDMINE_URL,
   apiKey: process.env.REDMINE_API_KEY,
+  attachmentUrl: process.env.REDMINE_ATTACHMENT_URL,
+  useAttachmets: process.env.REDMINE_USE_ATTACHMENTS === "true",
   onlyActiveUsers: process.env.REDMINE_PARSE_ONLY_ACTIVE_USERS === "true",
   onlyActiveTasks: process.env.REDMINE_PARSE_ONLY_ACTIVE_TASKS === "true",
   parseWorkLog: process.env.REDMINE_PARSE_WORKLOG === "true",
@@ -48,12 +52,12 @@ async function getRedmineIssues(projectId) {
 }
 
 // Get comments for an issue from Redmine
-async function getRedmineIssueComments(issueId) {
-  const response = await axios.get(`/issues/${issueId}.json?include=journals`, {
+async function getRedmineIssueCommentsAndAttachments(issueId) {
+  const response = await axios.get(`/issues/${issueId}.json?include=attachments,journals`, {
     baseURL: redmineConfig.baseURL,
     headers: { "X-Redmine-API-Key": redmineConfig.apiKey },
   });
-  return response.data.issue.journals;
+  return [response.data.issue.journals, response.data.issue.attachments];
 }
 
 // Transform issues to Jira format
@@ -102,7 +106,36 @@ function transformIssuesToJiraFormatWithUsers(issues, redmineUsers) {
         startDate: new Date(worklog.spent_on).toISOString(),
         comment: worklog.comments ?? '',
       };
-    });
+    })
+    
+    const attachments = redmineConfig.useAttachmets ? issue.attachments.map((attachment) => {
+        const url = attachment.content_url;
+        let resultUrl = redmineConfig.baseURL + url.slice(url.indexOf("/attachments/download"), url.length);
+        
+        const date = new Date(attachment.created_on);
+        const datePrefix = date.getFullYear().toString().substr(-2) + ("0" + (date.getMonth() + 1)).slice(-2) + ("0" + date.getDate()).slice(-2) + ("0" + date.getHours()).slice(-2) + ("0" + date.getMinutes()).slice(-2) + ("0" + date.getSeconds()).slice(-2);
+
+        if (redmineConfig.attachmentUrl) {
+            resultUrl = redmineConfig.attachmentUrl + datePrefix + '_' + url.match(/[^\/]+$/)[0];
+        }
+
+        if (redmineConfig.attachmentUrl && attachment.filename.match(/[а-яА-ЯёЁ]/g)) { // Проверяем наличие кириллических символов
+            const hash = crypto.createHash('md5');
+            hash.update(attachment.filename);
+            const hashName = hash.digest('hex'); // Возвращаем зашифрованное значение
+            resultUrl = redmineConfig.attachmentUrl + datePrefix + '_' + hashName + '.' + attachment.filename.split('.').pop();
+        } 
+
+        
+        return {
+            name: attachment.filename,
+            attacher: redmineUsers[attachment?.author?.id]?.login,
+            created: new Date(attachment.created_on).toISOString(),
+            uri: resultUrl,
+            description: attachment.description,
+        }
+    }) : [];
+
      
     return {
       priority: jiraConfig.defaultPriority,
@@ -120,6 +153,7 @@ function transformIssuesToJiraFormatWithUsers(issues, redmineUsers) {
       originalEstimate: convertHoursToISO8601(issue.estimated_hours),
       comments: comments,
       worklogs: worklogs,
+      attachments: attachments,
     };
   });
 }
@@ -184,7 +218,8 @@ async function exportRedmineIssuesToJira(projectId, jiraProjectKey) {
   });
 
   for (const issue of issues) {
-    issue.comments = await getRedmineIssueComments(issue.id);
+    [issue.comments, issue.attachments] = await getRedmineIssueCommentsAndAttachments(issue.id);
+    
     if (jiraConfig.useRedmineUsers && redmineConfig.parseWorkLog) {
       issue.worklogs = (await getRedmineTimeEntries(projectId, issue.id)) ?? [];
     } else {
